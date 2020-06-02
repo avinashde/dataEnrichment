@@ -5,30 +5,24 @@ import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.joda.time.Duration;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.*;
 import java.util.*;
 
 /**
- * step1: read data from kafka topic
+ * step1: read user id from kafka topic
  * step2: extract user ids from kafka data
- * step3: read user ids from postgresql database
- * step4: find common user id from kafka and postgresql data
- * step5: form the dyanamic postgresql query and fetch the data based on common user ids
- * step6: write user data to kafka topic
+ * step3: form the dyanamic postgresql query and fetch the data from the postgesql table
+ * step4: write user data back to kafka topic
  * */
 
 
@@ -55,16 +49,11 @@ public class dataEnrichment {
                 .withValueDeserializer(StringDeserializer.class)
                 .withoutMetadata());
 
-        PCollection<KV<String,String>> fixedWindowedItems = collection.apply(
-                Window.<KV<String,String>>into(FixedWindows.of(Duration.standardSeconds(15))));
-
-
-
         /**
          * call ParDo function ProcessKafkaFn()
          * */
         PCollection<KV<String, String>> getUserdata =
-                fixedWindowedItems.apply("ReadFromKafka", ParDo.of(new ProcessKafkaFn()));
+                collection.apply("ReadFromKafka", ParDo.of(new ProcessKafkaFn()));
 
 
         /**
@@ -95,13 +84,8 @@ public class dataEnrichment {
         @ProcessElement
         public void processElement(ProcessContext context) throws IOException {
             /**
-             * read user id from context
-             * read user id from postgresql
-             * find the common user ids from both the input source like kafka and postgresql
-             * form the dynamic postgresql query to read the data from the postgresql
-             * send user data back  DoFn  {context.output}
+             * read postgres sql required parameters
              * */
-
             FileInputStream fis=new FileInputStream("psql.properties");
             Properties p=new Properties();
             p.load (fis);
@@ -114,15 +98,20 @@ public class dataEnrichment {
             /**
              * step1:read user id from kafka
              * */
-            KV<String, String> element = context.element();
-            JSONObject ExtractUserid = new JSONObject(element);
-            Integer userIdFromKafka = (Integer) ExtractUserid.get("User_Id");
-            String id = Integer.toString(userIdFromKafka);
-            ArrayList<String> userId= new ArrayList<>();
-            userId.add(id);
+
+            JSONObject jsonRecord = new JSONObject(context.element().getValue());
+            JSONObject UserID = jsonRecord.getJSONObject("Users");
+            JSONArray Ids = UserID.getJSONArray("Userid");
+            List<String> list = new ArrayList<String>();
+            for(int i = 0; i < Ids.length(); ++i) {
+                JSONObject rec = Ids.getJSONObject(i);
+                Integer id = rec.getInt("id");
+                String ids = Integer.toString(id);
+                list.add(ids);
+            }
 
             /**
-             * step1:read user id from postgresql
+             * form postgresql dynamic query to fetch user data
              * */
             Connection c = null;
             Statement stmt = null;
@@ -137,49 +126,35 @@ public class dataEnrichment {
                 c.setAutoCommit(false);
                 LOG.info("Opened database successfully");
                 stmt = c.createStatement();
-                ResultSet results = stmt.executeQuery("select user_id from quantiphi");
-                /**
-                 * Stores properties of a ResultSet object, including column count
-                 * */
-                ResultSetMetaData rsmd = results.getMetaData();
-                int columnCount = rsmd.getColumnCount();
-                ArrayList<String> resultList= new ArrayList<>(columnCount);
-                while (results.next()) {
-                    int i = 1;
-                    while(i <= columnCount) {
-                        resultList.add(results.getString(i++));
-                    }
+                StringBuilder strbul=new StringBuilder();
+                for(String str : list)
+                {
+                    strbul.append(str);
+                    //for adding comma between elements
+                    strbul.append(",");
                 }
+                //just for removing last comma
+                strbul.setLength(strbul.length()-1);
+                String str=strbul.toString();
 
-                /**
-                 *  find the common user ids from both the input source like kafka and postgresql
-                 * */
+                LOG.info("Converted String is " + str);
 
-                List<String> commonIDs = new ArrayList<>(resultList);
-                commonIDs.retainAll(userId);
 
-                for (int counter = 0; counter < commonIDs.size(); counter++) {
-                    LOG.info(commonIDs.get(counter));
-                    String selectClause = "SELECT json_agg(quantiphi)::jsonb FROM quantiphi where user_id="+commonIDs.get(counter);
-                    try {
+                try {
+                        String selectClause ="SELECT json_agg(quantiphi)::jsonb FROM quantiphi where user_id in" +"("+str+")";
                         ResultSet enrichResult = stmt.executeQuery(selectClause);
-
                         while (enrichResult.next()) {
-                            // Read values using column name
+                             //Read values using column name
+                            int i =1;
                             String finalUserData = enrichResult.getString(1);
-                            context.output(KV.of(null,finalUserData));
-                            LOG.info(finalUserData);
-                    }
+                            String JsonData ="{\"User\":"+finalUserData+"}";
+                            context.output(KV.of(null,JsonData));
+                            enrichResult.close();
+                        }
                     } catch (SQLException ex) {
                         ex.printStackTrace();
                     }
 
-                    /**
-                     * send user data back  {context.output}
-                     * */
-
-                }
-                results.close();
                 stmt.close();
                 c.close();
             }

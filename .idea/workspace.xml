@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="b0c72b6e-6b6a-408a-8bbd-059568d5dfde" name="Default Changelist" comment="" />
+    <list default="true" id="b0c72b6e-6b6a-408a-8bbd-059568d5dfde" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README" beforeDir="false" afterPath="$PROJECT_DIR$/README" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dataEnrichment.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/org/enrich/dataEnrichment.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/org/enrich/dataEnrichment.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/META-INF/dataEnrichment.kotlin_module" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/org/enrich/dataEnrichment$ProcessKafkaFn.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/org/enrich/dataEnrichment$ProcessKafkaFn.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/org/enrich/dataEnrichment.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/org/enrich/dataEnrichment.class" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -16,6 +25,9 @@
       </list>
     </option>
   </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
   <component name="MavenImportPreferences">
     <option name="importingSettings">
       <MavenImportingSettings>
@@ -25,8 +37,10 @@
   </component>
   <component name="ProjectId" id="1chgG8VvSk7mKemsEG8avAMTgd5" />
   <component name="PropertiesComponent">
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="aspect.path.notification.shown" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="node.js.detected.package.eslint" value="true" />
     <property name="node.js.detected.package.tslint" value="true" />
     <property name="node.js.path.for.package.eslint" value="project" />
@@ -57,7 +71,7 @@
     <configuration name="dataEnrichment" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="com.org.enrich.dataEnrichment" />
       <module name="dataEnrichment" />
-      <option name="PROGRAM_PARAMETERS" value="--project=upheld-quanta-275008 --kafkaHostname=localhost:9092 --inputTopic=dataEnrich --stagingLocation=gs://df_temp_test/staging --tempLocation=gs://df_temp_test/tmp --outputTopic=datain" />
+      <option name="PROGRAM_PARAMETERS" value="--project=upheld-quanta-275008 --kafkaHostname=localhost:9092 --inputTopic=dataEnrich --stagingLocation=gs://df_temp_test/staging --tempLocation=gs://df_temp_test/tmp --outputTopic=output" />
       <extension name="coverage">
         <pattern>
           <option name="PATTERN" value="com.org.enrich.*" />
@@ -86,54 +100,51 @@
       <updated>1590986140389</updated>
       <workItem from="1590986143201" duration="8363000" />
       <workItem from="1590998646979" duration="23943000" />
+      <workItem from="1591080766148" duration="15558000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="1" />
   </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/src/main/java/com/org/enrich/dataEnrichment.java</url>
-          <line>52</line>
-          <option name="timeStamp" value="26" />
+          <line>147</line>
+          <option name="timeStamp" value="46" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/src/main/java/com/org/enrich/dataEnrichment.java</url>
-          <line>116</line>
-          <option name="timeStamp" value="31" />
+          <line>126</line>
+          <option name="timeStamp" value="47" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/src/main/java/com/org/enrich/dataEnrichment.java</url>
-          <line>58</line>
-          <option name="timeStamp" value="32" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/com/org/enrich/dataEnrichment.java</url>
-          <line>120</line>
-          <option name="timeStamp" value="33" />
+          <line>105</line>
+          <option name="timeStamp" value="48" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/src/main/java/com/org/enrich/dataEnrichment.java</url>
           <line>75</line>
-          <option name="timeStamp" value="34" />
+          <option name="timeStamp" value="49" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/src/main/java/com/org/enrich/dataEnrichment.java</url>
-          <line>108</line>
-          <option name="timeStamp" value="35" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/com/org/enrich/dataEnrichment.java</url>
-          <line>137</line>
-          <option name="timeStamp" value="36" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/com/org/enrich/dataEnrichment.java</url>
-          <line>148</line>
-          <option name="timeStamp" value="37" />
+          <line>63</line>
+          <option name="timeStamp" value="50" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

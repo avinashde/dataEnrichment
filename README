@@ -32,4 +32,12 @@
     INSERT INTO TEST(USER_ID,NAME,AGE,ADDRESS,SALARY) VALUES (1001, 'Aliya', 28, 'Texas', '21000');
 
 7.dataflow run command
-    mvn compile exec:java -Dexec.mainClass=org.com.enrich.Data_Enrichment -Dexec.args="--project=upheld-quanta-275008 --kafkaHostname=localhost:9092 --inputTopic=downstream --stagingLocation=gs://df_temp_test/staging  --tempLocation=gs://df_temp_test/tmp --outputTopic=dataEnrich --outputTopic=donwstream --psqlHostname=localhost:5432 --psqlDbname=test_db --psqlUsername=postgres --psqlPassword=admin"
+    mvn compile exec:java -Dexec.mainClass=org.com.enrich.Data_Enrichment -Dexec.args="--project=upheld-quanta-275008 --kafkaHostname=localhost:9092 --inputTopic=downstream --stagingLocation=gs://df_temp_test/staging  --tempLocation=gs://df_temp_test/tmp --outputTopic=dataEnrich --outputTopic=donwstream"
+
+8.input json records from kafka topic:{"Users":{"Userid":[{"id":100},{"id":101},{"id":102},{"id":103}]}}
+
+9 output json records for kafka topic:
+{"User": [{"age": 23, "name": "Teddy", "salary": 20000, "address": "Norway", "user_id": 100},
+{"age": 23, "name": "Teddx", "salary": 21000, "address": "Norway", "user_id": 101},
+{"age": 25, "name": "Allen", "salary": 20000, "address": "Texas ", "user_id": 102},
+{"age": 28, "name": "Aliya", "salary": 21000, "address": "Texas ", "user_id": 103}]}
