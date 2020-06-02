@@ -1,0 +1,35 @@
+1. install kafka on your system
+    pip install kafka-python
+   start zookeeper
+     bin/zookeeper-server-start.sh config/zookeeper.properties
+    start kafka server
+     bin/kafka-server-start.sh config/server.properties
+
+2.create topic in kafka
+    bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic dataEnrich
+
+3.launch kafka producer and put the json record in kafka topic
+    bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic dataEnrich
+    {"userID":100}
+
+3.download and install postgresql database
+    https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
+
+4.create database in postgresql
+    CREATE DATABASE dbname
+
+5.create table in postgresql database
+    CREATE TABLE TEST(
+       USER_ID INT     NOT NULL,
+       NAME           TEXT    NOT NULL,
+       AGE            INT     NOT NULL,
+       ADDRESS        CHAR(50),
+       SALARY         REAL
+    );
+
+6.insert data in postgresql table
+    INSERT INTO TEST(USER_ID,NAME,AGE,ADDRESS,SALARY) VALUES (100, 'Allen', 25, 'Texas', '20000');
+    INSERT INTO TEST(USER_ID,NAME,AGE,ADDRESS,SALARY) VALUES (1001, 'Aliya', 28, 'Texas', '21000');
+
+7.dataflow run command
+    mvn compile exec:java -Dexec.mainClass=org.com.enrich.Data_Enrichment -Dexec.args="--project=upheld-quanta-275008 --kafkaHostname=localhost:9092 --inputTopic=downstream --stagingLocation=gs://df_temp_test/staging  --tempLocation=gs://df_temp_test/tmp --outputTopic=dataEnrich --outputTopic=donwstream --psqlHostname=localhost:5432 --psqlDbname=test_db --psqlUsername=postgres --psqlPassword=admin"
