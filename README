@@ -18,18 +18,29 @@
 4.create database in postgresql
     CREATE DATABASE dbname
 
-5.create table in postgresql database
-    CREATE TABLE TEST(
+5.create table Users in postgresql database
+    CREATE TABLE USERS(
        USER_ID INT     NOT NULL,
        NAME           TEXT    NOT NULL,
        AGE            INT     NOT NULL,
        ADDRESS        CHAR(50),
        SALARY         REAL
     );
+6.create table for ip in postgresql database
+      CREATE TABLE IPDETAILS(
+         IP INET     NOT NULL,
+         PROTOCOL           TEXT    NOT NULL,
+         SERVER            TEXT     NOT NULL
+      );
 
-6.insert data in postgresql table
-    INSERT INTO TEST(USER_ID,NAME,AGE,ADDRESS,SALARY) VALUES (100, 'Allen', 25, 'Texas', '20000');
-    INSERT INTO TEST(USER_ID,NAME,AGE,ADDRESS,SALARY) VALUES (1001, 'Aliya', 28, 'Texas', '21000');
+
+7.insert data in postgresql table USERS
+    INSERT INTO USERS(USER_ID,NAME,AGE,ADDRESS,SALARY) VALUES (100, 'Allen', 25, 'Texas', '20000');
+    INSERT INTO USERS(USER_ID,NAME,AGE,ADDRESS,SALARY) VALUES (1001, 'Aliya', 28, 'Texas', '21000');
+
+8.insert data in postgresql table IP
+    INSERT INTO IPDETAILS(IP,PROTOCOL,SERVER) VALUES (127.0.0.1, 'TCP', 'localhost');
+    INSERT INTO IPDETAILS(IP,PROTOCOL,SERVER) VALUES (128.0.0.1, 'TCPIP', 'localhost');
 
 7.dataflow run command
     mvn compile exec:java -Dexec.mainClass=org.com.enrich.Data_Enrichment -Dexec.args="--project=upheld-quanta-275008 --kafkaHostname=localhost:9092 --inputTopic=downstream --stagingLocation=gs://df_temp_test/staging  --tempLocation=gs://df_temp_test/tmp --outputTopic=dataEnrich --outputTopic=donwstream"

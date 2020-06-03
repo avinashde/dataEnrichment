@@ -4,16 +4,17 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.sql.*;
 import java.util.*;
@@ -27,7 +28,9 @@ import java.util.*;
 
 
 public class dataEnrichment {
+    PsqlProperties properties = new PsqlProperties();
     private static final Logger LOG = LoggerFactory.getLogger(dataEnrichment.class);
+
 
     public static void run(PipelineInputArgs options)
             throws IOException, IllegalArgumentException {
@@ -50,16 +53,29 @@ public class dataEnrichment {
                 .withoutMetadata());
 
         /**
-         * call ParDo function ProcessKafkaFn()
+         * call ParDo function ProcessKafkaFn() for user entity
          * */
-        PCollection<KV<String, String>> getUserdata =
-                collection.apply("ReadFromKafka", ParDo.of(new ProcessKafkaFn()));
+        PCollection<KV<String, String>> getUserData =
+                collection.apply("ReadFromKafka", ParDo.of(new ProcessKafkaUser()));
+
+        PCollection<KV<String, String>> geIpData =
+                collection.apply("ReadFromKafka", ParDo.of(new ProcessKafkaIp()));
+
+
+        /**
+         * merged getUserData and geIpData collection
+         * */
+
+        PCollectionList<KV<String, String>> collectionList = PCollectionList.of(getUserData).and(geIpData);
+        PCollection<KV<String, String>> MergedPCollection = collectionList.apply(Flatten.<KV<String,String>>pCollections());
+
+
 
 
         /**
          * write user data to kafka topic
          * */
-        getUserdata.apply("WriteToKafka",
+        MergedPCollection.apply("WriteToKafka",
                 KafkaIO.<String, String>write()
                         .withBootstrapServers(
                                 options.getKafkaHostname())
@@ -71,6 +87,7 @@ public class dataEnrichment {
     }
 
     public static void main(String[] args) throws IOException, IllegalArgumentException {
+        PsqlProperties properties = new PsqlProperties();
         // Create and set your PipelineOptions.
         PipelineOptionsFactory.register(PipelineInputArgs.class);
         PipelineInputArgs options = PipelineOptionsFactory.fromArgs(args).withValidation()
@@ -78,36 +95,23 @@ public class dataEnrichment {
         run(options);
     }
 
-    static class ProcessKafkaFn
-            extends DoFn<KV<String, String>, KV<String, String>>  {
+    static class ProcessKafkaUser
+            extends DoFn<KV<String, String>, KV<String, String>> {
 
         @ProcessElement
         public void processElement(ProcessContext context) throws IOException {
             /**
-             * read postgres sql required parameters
-             * */
-            FileInputStream fis=new FileInputStream("psql.properties");
-            Properties p=new Properties();
-            p.load (fis);
-            String dname= (String) p.get ("Dname");
-            String hostname= (String) p.get ("Hostname");
-            String username= (String) p.get ("Uname");
-            String password= (String) p.get ("Password");
-            String driver= (String) p.get ("Driver");
-
-            /**
              * step1:read user id from kafka
              * */
-
             JSONObject jsonRecord = new JSONObject(context.element().getValue());
             JSONObject UserID = jsonRecord.getJSONObject("Users");
-            JSONArray Ids = UserID.getJSONArray("Userid");
-            List<String> list = new ArrayList<String>();
-            for(int i = 0; i < Ids.length(); ++i) {
+            JSONArray Ids = UserID.getJSONArray("User");
+            List<String> UserIdList = new ArrayList<String>();
+            for (int i = 0; i < Ids.length(); ++i) {
                 JSONObject rec = Ids.getJSONObject(i);
                 Integer id = rec.getInt("id");
                 String ids = Integer.toString(id);
-                list.add(ids);
+                UserIdList.add(ids);
             }
 
             /**
@@ -116,50 +120,44 @@ public class dataEnrichment {
             Connection c = null;
             Statement stmt = null;
             try {
-                String connString = "jdbc:postgresql:"+hostname+"/"+dname;
-                System.out.println(connString);
-
-                Class.forName(driver);
-                c = DriverManager
-                        .getConnection(connString,
-                                username, password);
+                PsqlProperties properties = new PsqlProperties();
+                Class.forName(properties.getProp().get(3));
+                c = DriverManager.getConnection(properties.getProp().get(0),properties.getProp().get(1), properties.getProp().get(2));
                 c.setAutoCommit(false);
                 LOG.info("Opened database successfully");
                 stmt = c.createStatement();
-                StringBuilder strbul=new StringBuilder();
-                for(String str : list)
-                {
+                StringBuilder strbul = new StringBuilder();
+                for (String str : UserIdList) {
                     strbul.append(str);
                     //for adding comma between elements
                     strbul.append(",");
                 }
                 //just for removing last comma
-                strbul.setLength(strbul.length()-1);
-                String str=strbul.toString();
+                strbul.setLength(strbul.length() - 1);
+                String str = strbul.toString();
 
                 LOG.info("Converted String is " + str);
 
 
                 try {
-                        String selectClause ="SELECT json_agg(quantiphi)::jsonb FROM quantiphi where user_id in" +"("+str+")";
-                        ResultSet enrichResult = stmt.executeQuery(selectClause);
-                        while (enrichResult.next()) {
-                             //Read values using column name
-                            int i =1;
-                            String finalUserData = enrichResult.getString(1);
-                            String JsonData ="{\"User\":"+finalUserData+"}";
-                            context.output(KV.of(null,JsonData));
-                            enrichResult.close();
-                        }
-                    } catch (SQLException ex) {
-                        ex.printStackTrace();
+                    String selectClause = "SELECT json_agg(quantiphi)::jsonb FROM quantiphi where user_id in" + "(" + str + ")";
+                    ResultSet enrichResult = stmt.executeQuery(selectClause);
+                    while (enrichResult.next()) {
+                        //Read values using column name
+                        int i = 1;
+                        String finalUserData = enrichResult.getString(1);
+                        String JsonData = "{\"User\":" + finalUserData + "}";
+                        context.output(KV.of(null, JsonData));
+
                     }
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
 
                 stmt.close();
                 c.close();
-            }
-            catch ( Exception e ) {
-                System.err.println( e.getClass().getName()+": "+ e.getMessage() );
+            } catch (Exception e) {
+                System.err.println(e.getClass().getName() + ": " + e.getMessage());
                 System.exit(0);
             }
             LOG.info("Operation done successfully");
@@ -167,5 +165,76 @@ public class dataEnrichment {
 
         }
 
+    }
+
+    static class ProcessKafkaIp
+            extends DoFn<KV<String, String>, KV<String, String>> {
+
+        @ProcessElement
+        public void processElement(ProcessContext context) throws IOException, ClassNotFoundException {
+            /**
+             * step1:read user id from kafka
+             * */
+
+            JSONObject jsonRecord = new JSONObject(context.element().getValue());
+            JSONObject UserID = jsonRecord.getJSONObject("Ips");
+            JSONArray Ids = UserID.getJSONArray("Ip");
+            List<String> Iplist = new ArrayList<String>();
+            for (int i = 0; i < Ids.length(); ++i) {
+                JSONObject rec = Ids.getJSONObject(i);
+                String ip = rec.getString("ip");
+                Iplist.add(ip);
+            }
+
+            /**
+             * form postgresql dynamic query to fetch user data
+             * */
+            Connection c = null;
+            Statement stmt = null;
+            try {
+                PsqlProperties properties = new PsqlProperties();
+                Class.forName(properties.getProp().get(3));
+                c = DriverManager.getConnection(properties.getProp().get(0),properties.getProp().get(1), properties.getProp().get(2));
+                c.setAutoCommit(false);
+                LOG.info("Opened database successfully");
+                stmt = c.createStatement();
+                StringBuilder strbul = new StringBuilder();
+                for (String str : Iplist) {
+                    strbul.append(str);
+                    //for adding comma between elements
+                    strbul.append(",");
+                    //just for removing last comma
+                    strbul.setLength(strbul.length() - 1);
+                    String string = "'" + Iplist.toString().replace("[", "").replace("]", "").replace(" ", "").replace(",", "','") + "'";
+                    System.out.println("s is" + string);
+
+                    LOG.info("Converted String is " + string);
+
+                    try {
+                        String selectClause = "SELECT json_agg(ipdetails)::jsonb FROM ipdetails where ip in" + "(" + string + ")";
+                        ResultSet enrichResult = stmt.executeQuery(selectClause);
+                        while (enrichResult.next()) {
+                            //Read values using column name
+                            int i = 1;
+                            String finalUserData = enrichResult.getString(1);
+                            String JsonData = "{\"Ips\":" + finalUserData + "}";
+                            System.out.println(JsonData);
+                            context.output(KV.of(null, JsonData));
+
+                        }
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                    }
+
+                    stmt.close();
+                    c.close();
+                }
+                LOG.info("Operation done successfully");
+
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
+    }
 }
