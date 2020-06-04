@@ -20,7 +20,7 @@ import java.sql.*;
 import java.util.*;
 
 /**
- * step1: read user id from kafka topic
+ * step1: read userid/ip from kafka topic
  * step2: extract user ids from kafka data
  * step3: form the dyanamic postgresql query and fetch the data from the postgesql table
  * step4: merge two Pcollection
@@ -38,7 +38,7 @@ public class dataEnrichment {
         FileSystems.setDefaultPipelineOptions(options);
 
         /**
-         * Create the Pipeline object with the options we defined above.
+         * Create the Pipeline object with the options we defined in PipelineInputArgs.
          */
         Pipeline pipeline = Pipeline.create(options);
 
@@ -53,28 +53,31 @@ public class dataEnrichment {
                 .withValueDeserializer(StringDeserializer.class)
                 .withoutMetadata());
 
-        /**
-         * call ParDo function ProcessKafkaUser() for user entity and call ProcessKafkaIp() Pardo function for ip entity
-         * */
 
+        /**
+         * Create two PCollections by reading from the kafka topic
+         * */
         PCollection<String> getUserData =
-                collection.apply("ReadFromKafka", ParDo.of(new ProcessKafkaUser()));
+                collection.apply("User data", ParDo.of(new ProcessKafkaUser()));
 
         PCollection<String> geIpData =
-                collection.apply("ReadFromKafka", ParDo.of(new ProcessKafkaIp()));
+                collection.apply("Ip data", ParDo.of(new ProcessKafkaIp()));
 
 
         /**
-         * merged getUserData and geIpData collection and send merged user/ip data back to kafka topic
+         * Merge the two PCollections
          * */
-
         PCollectionList<String> pcs = PCollectionList.of(getUserData).and(geIpData);
         PCollection<String> merged = pcs.apply(Flatten.<String>pCollections());
         merged.apply(ParDo.of(new DoFn<String,KV<String,String>>() {
             @ProcessElement
             public void processElement(ProcessContext context){
                 context.output(KV.of(null, context.element()));
+
             }
+            /**
+             * write merged message to kafka topic
+             * */
         })).apply("WriteToKafka",
                 KafkaIO.<String, String> write()
                         .withBootstrapServers(
@@ -83,9 +86,7 @@ public class dataEnrichment {
                         .withKeySerializer(StringSerializer.class)
                         .withValueSerializer(StringSerializer.class));
 
-
-
-        pipeline.run().waitUntilFinish();
+        pipeline.run();
     }
 
     public static void main(String[] args) throws IOException, IllegalArgumentException {
@@ -103,7 +104,7 @@ public class dataEnrichment {
         @ProcessElement
         public void processElement(ProcessContext context) throws IOException {
             /**
-             * step1:read user id from kafka
+             * extract user id from kafka topic
              * */
             JSONObject jsonRecord = new JSONObject(context.element().getValue());
             JSONObject UserID = jsonRecord.getJSONObject("Users");
@@ -117,12 +118,14 @@ public class dataEnrichment {
             }
 
             /**
-             * form postgresql dynamic query to fetch user data
+             * form dynamic query to fetch user data
              * */
             Connection c = null;
             Statement stmt = null;
             try {
+                //read postgresql paramter
                 PsqlProperties properties = new PsqlProperties();
+                //create database connection
                 Class.forName(properties.getProp().get(3));
                 c = DriverManager.getConnection(properties.getProp().get(0),properties.getProp().get(1), properties.getProp().get(2));
                 c.setAutoCommit(false);
@@ -142,6 +145,9 @@ public class dataEnrichment {
 
 
                 try {
+                    /**
+                     *fetch data from postgres sql  by using postgresql query
+                     * */
                     String selectClause = "SELECT json_agg(quantiphi)::jsonb FROM quantiphi where user_id in" + "(" + str + ")";
                     ResultSet enrichResult = stmt.executeQuery(selectClause);
                     while (enrichResult.next()) {
@@ -175,7 +181,7 @@ public class dataEnrichment {
         @ProcessElement
         public void processElement(ProcessContext context) throws IOException, ClassNotFoundException {
             /**
-             * step1:read user id from kafka
+             * extract user ip from kafka topic
              * */
 
             JSONObject jsonRecord = new JSONObject(context.element().getValue());
@@ -189,12 +195,14 @@ public class dataEnrichment {
             }
 
             /**
-             * form postgresql dynamic query to fetch user data
+             * form postgresql dynamic query to fetch ip data
              * */
             Connection c = null;
             Statement stmt = null;
             try {
+                //read postgresslq parameter
                 PsqlProperties properties = new PsqlProperties();
+                //create database connection
                 Class.forName(properties.getProp().get(3));
                 c = DriverManager.getConnection(properties.getProp().get(0),properties.getProp().get(1), properties.getProp().get(2));
                 c.setAutoCommit(false);
@@ -213,6 +221,9 @@ public class dataEnrichment {
                     LOG.info("Converted String is " + string);
 
                     try {
+                        /**
+                         * fetch data from postgres sql by using postgresql query
+                         * */
                         String selectClause = "SELECT json_agg(ipdetails)::jsonb FROM ipdetails where ip in" + "(" + string + ")";
                         ResultSet enrichResult = stmt.executeQuery(selectClause);
                         while (enrichResult.next()) {
