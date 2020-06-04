@@ -38,17 +38,27 @@
     INSERT INTO USERS(USER_ID,NAME,AGE,ADDRESS,SALARY) VALUES (100, 'Allen', 25, 'Texas', '20000');
     INSERT INTO USERS(USER_ID,NAME,AGE,ADDRESS,SALARY) VALUES (1001, 'Aliya', 28, 'Texas', '21000');
 
-8.insert data in postgresql table IP
+8. select clause for user entity
+   SELECT json_agg(users)::jsonb FROM users where user_id in (100,101,103,104)
+
+9.insert data in postgresql table IP
     INSERT INTO IPDETAILS(IP,PROTOCOL,SERVER) VALUES (127.0.0.1, 'TCP', 'localhost');
     INSERT INTO IPDETAILS(IP,PROTOCOL,SERVER) VALUES (128.0.0.1, 'TCPIP', 'localhost');
 
-7.dataflow run command
+10. select clause for ip entity
+    SELECT json_agg(ipdetails)::jsonb FROM ipdetails where ip in ('127.0.o.1','128.0.0.1')
+
+
+11.dataflow run command
     mvn compile exec:java -Dexec.mainClass=org.com.enrich.Data_Enrichment -Dexec.args="--project=upheld-quanta-275008 --kafkaHostname=localhost:9092 --inputTopic=downstream --stagingLocation=gs://df_temp_test/staging  --tempLocation=gs://df_temp_test/tmp --outputTopic=dataEnrich --outputTopic=donwstream"
 
-8.input json records from kafka topic:{"Users":{"Userid":[{"id":100},{"id":101},{"id":102},{"id":103}]}}
+12.input json records from kafka topic:{"Users":{"Userid":[{"id":100},{"id":101},{"id":102},{"id":103}]}}
 
-9 output json records for kafka topic:
+13 output json records for users:
 {"User": [{"age": 23, "name": "Teddy", "salary": 20000, "address": "Norway", "user_id": 100},
 {"age": 23, "name": "Teddx", "salary": 21000, "address": "Norway", "user_id": 101},
 {"age": 25, "name": "Allen", "salary": 20000, "address": "Texas ", "user_id": 102},
 {"age": 28, "name": "Aliya", "salary": 21000, "address": "Texas ", "user_id": 103}]}
+
+14.output json record for ips :
+{"Ips":[{"ip": "127.0.0.1", "server": "localhost", "protocol": "TCP"}]}

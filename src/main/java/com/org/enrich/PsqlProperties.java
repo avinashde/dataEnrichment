@@ -22,10 +22,4 @@ public class PsqlProperties {
         list.add(driver);
         return list;
     }
-
-    public static void main(String[] args) throws IOException {
-        System.out.println("database connection properties");
-
-    }
-
 }

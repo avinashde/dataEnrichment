@@ -23,7 +23,8 @@ import java.util.*;
  * step1: read user id from kafka topic
  * step2: extract user ids from kafka data
  * step3: form the dyanamic postgresql query and fetch the data from the postgesql table
- * step4: write user data back to kafka topic
+ * step4: merge two Pcollection
+ * step4: send user data back to kafka topic
  * */
 
 
@@ -53,35 +54,36 @@ public class dataEnrichment {
                 .withoutMetadata());
 
         /**
-         * call ParDo function ProcessKafkaFn() for user entity
+         * call ParDo function ProcessKafkaUser() for user entity and call ProcessKafkaIp() Pardo function for ip entity
          * */
-        PCollection<KV<String, String>> getUserData =
+
+        PCollection<String> getUserData =
                 collection.apply("ReadFromKafka", ParDo.of(new ProcessKafkaUser()));
 
-        PCollection<KV<String, String>> geIpData =
+        PCollection<String> geIpData =
                 collection.apply("ReadFromKafka", ParDo.of(new ProcessKafkaIp()));
 
 
         /**
-         * merged getUserData and geIpData collection
+         * merged getUserData and geIpData collection and send merged user/ip data back to kafka topic
          * */
 
-        PCollectionList<KV<String, String>> collectionList = PCollectionList.of(getUserData).and(geIpData);
-        PCollection<KV<String, String>> MergedPCollection = collectionList.apply(Flatten.<KV<String,String>>pCollections());
-
-
-
-
-        /**
-         * write user data to kafka topic
-         * */
-        MergedPCollection.apply("WriteToKafka",
-                KafkaIO.<String, String>write()
+        PCollectionList<String> pcs = PCollectionList.of(getUserData).and(geIpData);
+        PCollection<String> merged = pcs.apply(Flatten.<String>pCollections());
+        merged.apply(ParDo.of(new DoFn<String,KV<String,String>>() {
+            @ProcessElement
+            public void processElement(ProcessContext context){
+                context.output(KV.of(null, context.element()));
+            }
+        })).apply("WriteToKafka",
+                KafkaIO.<String, String> write()
                         .withBootstrapServers(
                                 options.getKafkaHostname())
                         .withTopic(options.getOutputTopic())
                         .withKeySerializer(StringSerializer.class)
                         .withValueSerializer(StringSerializer.class));
+
+
 
         pipeline.run().waitUntilFinish();
     }
@@ -96,7 +98,7 @@ public class dataEnrichment {
     }
 
     static class ProcessKafkaUser
-            extends DoFn<KV<String, String>, KV<String, String>> {
+            extends DoFn<KV<String, String>,String> {
 
         @ProcessElement
         public void processElement(ProcessContext context) throws IOException {
@@ -147,7 +149,7 @@ public class dataEnrichment {
                         int i = 1;
                         String finalUserData = enrichResult.getString(1);
                         String JsonData = "{\"User\":" + finalUserData + "}";
-                        context.output(KV.of(null, JsonData));
+                        context.output(JsonData);
 
                     }
                 } catch (SQLException ex) {
@@ -168,7 +170,7 @@ public class dataEnrichment {
     }
 
     static class ProcessKafkaIp
-            extends DoFn<KV<String, String>, KV<String, String>> {
+            extends DoFn<KV<String, String>,String> {
 
         @ProcessElement
         public void processElement(ProcessContext context) throws IOException, ClassNotFoundException {
@@ -219,7 +221,7 @@ public class dataEnrichment {
                             String finalUserData = enrichResult.getString(1);
                             String JsonData = "{\"Ips\":" + finalUserData + "}";
                             System.out.println(JsonData);
-                            context.output(KV.of(null, JsonData));
+                            context.output(JsonData);
 
                         }
                     } catch (SQLException ex) {
